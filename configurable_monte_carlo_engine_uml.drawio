@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-13T21:55:00.000Z" agent="ChatGPT Codex" version="24.7.17" type="device">
+  <diagram id="monte-carlo-uml" name="Monte Carlo Engine UML">
+    <mxGraphModel dx="1500" dy="950" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="&lt;b&gt;Configurable Monte Carlo Option-Pricing Engine&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;UML class diagram&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=22;fontColor=#1F2937;" vertex="1" parent="1">
+          <mxGeometry x="470" y="10" width="560" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="config" value="&lt;b&gt;SimulationConfig&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;frozen dataclass&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;+ model: ModelType&lt;br&gt;+ discretization: DiscretizationType&lt;br&gt;+ payoff: PayoffType&lt;br&gt;+ option_type: OptionType&lt;br&gt;+ start_price: float&lt;br&gt;+ strike: float&lt;br&gt;+ maturity: float&lt;br&gt;+ risk_free_rate: float&lt;br&gt;+ volatility: float&lt;br&gt;+ num_paths: int&lt;br&gt;+ num_steps: int&lt;br&gt;+ random_seed: int | None&lt;br&gt;+ jump_intensity: float&lt;br&gt;+ jump_mean: float&lt;br&gt;+ jump_volatility: float&lt;hr&gt;+ __post_init__(): None" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="330" height="390" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="manager" value="&lt;b&gt;Manager&lt;/b&gt;&lt;hr&gt;- engine: Engine&lt;br&gt;- payoff: Payoff&lt;br&gt;- visualisation: Visualisation&lt;hr&gt;+ __init__(engine, payoff, visualisation)&lt;br&gt;+ start(config: SimulationConfig): SimulationResult&lt;br&gt;+ visualise(result: SimulationResult): dict[str, Figure]" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#7C3AED;fillColor=#F5F3FF;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="500" y="100" width="390" height="200" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="result" value="&lt;b&gt;SimulationResult&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;frozen dataclass&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;+ config: SimulationConfig&lt;br&gt;+ paths: ndarray&lt;br&gt;+ raw_payoffs: ndarray&lt;br&gt;+ discounted_payoffs: ndarray&lt;br&gt;+ option_price: float&lt;br&gt;+ payoff_variance: float&lt;br&gt;+ standard_error: float&lt;br&gt;+ elapsed_seconds: float&lt;hr&gt;+ time_grid: ndarray {property}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="100" width="330" height="280" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="engine" value="&lt;b&gt;Engine&lt;/b&gt;&lt;hr&gt;- _METHODS: dict[(ModelType, DiscretizationType), StepMethod]&lt;hr&gt;+ generate_paths(config: SimulationConfig): ndarray" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#059669;fillColor=#ECFDF5;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="400" y="400" width="380" height="140" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="payoff" value="&lt;b&gt;Payoff&lt;/b&gt;&lt;hr&gt;+ calculate(paths, config): ndarray&lt;br&gt;+ vanilla(paths, strike, option_type): ndarray&lt;br&gt;+ asian(paths, strike, option_type): ndarray&lt;br&gt;+ discount(payoffs, rate, maturity): ndarray" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#059669;fillColor=#ECFDF5;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="820" y="400" width="340" height="170" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="visualisation" value="&lt;b&gt;Visualisation&lt;/b&gt;&lt;hr&gt;+ create_all(result): dict[str, Figure]&lt;br&gt;+ plot_paths(result): Figure&lt;br&gt;+ plot_terminal_distribution(result): Figure&lt;br&gt;+ plot_payoff_distribution(result): Figure&lt;br&gt;+ plot_price_convergence(result): Figure&lt;br&gt;+ plot_variance_convergence(result): Figure&lt;hr&gt;- _new_figure(...): (Figure, Axes)&lt;br&gt;- _sample_indices(...): ndarray" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#059669;fillColor=#ECFDF5;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="430" width="350" height="260" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="model" value="&lt;b&gt;Model&lt;/b&gt;&lt;hr&gt;+ geometric_brownian_euler(current_price, r, σ, dt, Z): ndarray&lt;br&gt;+ geometric_brownian_milstein(current_price, r, σ, dt, Z): ndarray&lt;br&gt;+ merton_jump_euler(current_price, r, σ, dt, Z, jumps, λ, μJ, σJ): ndarray&lt;br&gt;+ merton_jump_milstein(current_price, r, σ, dt, Z, jumps, λ, μJ, σJ): ndarray&lt;hr&gt;&lt;font color=&quot;#6B7280&quot;&gt;All methods are static one-step equations.&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#D97706;fillColor=#FFFBEB;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="390" y="650" width="600" height="220" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="modelType" value="&lt;b&gt;ModelType&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;enumeration&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;GBM&lt;br&gt;MERTON_JUMP" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;strokeColor=#6B7280;fillColor=#F9FAFB;fontColor=#111827;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="550" width="150" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="discretizationType" value="&lt;b&gt;DiscretizationType&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;enumeration&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;EULER&lt;br&gt;MILSTEIN" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;strokeColor=#6B7280;fillColor=#F9FAFB;fontColor=#111827;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="200" y="550" width="170" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="payoffType" value="&lt;b&gt;PayoffType&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;enumeration&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;VANILLA&lt;br&gt;ASIAN" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;strokeColor=#6B7280;fillColor=#F9FAFB;fontColor=#111827;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="700" width="150" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="optionType" value="&lt;b&gt;OptionType&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;enumeration&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;CALL&lt;br&gt;PUT" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;strokeColor=#6B7280;fillColor=#F9FAFB;fontColor=#111827;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="200" y="700" width="170" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="extensionNote" value="&lt;b&gt;Extension point&lt;/b&gt;&lt;br&gt;To add a model:&lt;br&gt;1. Add a ModelType value&lt;br&gt;2. Add Euler and Milstein methods to Model&lt;br&gt;3. Register both methods in Engine._METHODS&lt;br&gt;&lt;br&gt;Manager, Payoff and Visualisation remain unchanged." style="shape=note;whiteSpace=wrap;html=1;size=18;align=left;verticalAlign=top;spacing=12;strokeColor=#D97706;fillColor=#FEF3C7;fontColor=#78350F;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="750" width="340" height="170" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="edge-manager-engine" value="owns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;endArrow=none;strokeWidth=2;strokeColor=#7C3AED;" edge="1" parent="1" source="manager" target="engine">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-manager-payoff" value="owns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;endArrow=none;strokeWidth=2;strokeColor=#7C3AED;" edge="1" parent="1" source="manager" target="payoff">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-manager-visualisation" value="owns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;endArrow=none;strokeWidth=2;strokeColor=#7C3AED;" edge="1" parent="1" source="manager" target="visualisation">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-manager-config" value="receives" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#4B5563;" edge="1" parent="1" source="manager" target="config">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-manager-result" value="creates" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#4B5563;" edge="1" parent="1" source="manager" target="result">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-engine-model" value="dispatches selected equation" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeWidth=2;strokeColor=#D97706;" edge="1" parent="1" source="engine" target="model">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-engine-config" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#4B5563;" edge="1" parent="1" source="engine" target="config">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-payoff-config" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#4B5563;" edge="1" parent="1" source="payoff" target="config">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-visualisation-result" value="plots" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#4B5563;" edge="1" parent="1" source="visualisation" target="result">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-result-config" value="contains" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;endArrow=none;strokeColor=#2563EB;" edge="1" parent="1" source="result" target="config">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="edge-config-modeltype" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#9CA3AF;" edge="1" parent="1" source="config" target="modelType">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-config-disctype" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#9CA3AF;" edge="1" parent="1" source="config" target="discretizationType">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-config-payofftype" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#9CA3AF;" edge="1" parent="1" source="config" target="payoffType">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-config-optiontype" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#9CA3AF;" edge="1" parent="1" source="config" target="optionType">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-note-model" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#D97706;" edge="1" parent="1" source="extensionNote" target="model">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
