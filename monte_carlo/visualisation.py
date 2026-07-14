@@ -16,7 +16,7 @@ class Visualisation:
             "terminal_distribution": self.plot_terminal_distribution(result),
             "payoff_distribution": self.plot_payoff_distribution(result),
             "price_convergence": self.plot_price_convergence(result),
-            "variance_convergence": self.plot_variance_convergence(result),
+            "variance_convergence": self.plot_variance_of_mean_convergence(result),
         }
 
     @staticmethod
@@ -139,6 +139,71 @@ class Visualisation:
         )
         axes.legend()
         figure.tight_layout()
+        return figure
+    
+    def plot_variance_of_mean_convergence(
+        self, result: SimulationResult
+    ) -> Figure:
+        figure, axes = self._new_figure(
+            "Variance of Monte Carlo mean convergence",
+            "Number of paths",
+            "Estimated variance of mean",
+        )
+
+        values = result.discounted_payoffs
+        sample_counts = np.arange(1, len(values) + 1)
+
+        running_mean = np.cumsum(values) / sample_counts
+        cumulative_sum_squares = np.cumsum(values**2)
+
+        # Sample variance of the individual discounted payoffs.
+        running_sample_variance = np.zeros_like(values, dtype=float)
+
+        if len(values) > 1:
+            running_sample_variance[1:] = (
+                cumulative_sum_squares[1:]
+                - sample_counts[1:] * running_mean[1:] ** 2
+            ) / (sample_counts[1:] - 1)
+
+            # Protect against tiny negative values caused by floating-point errors.
+            running_sample_variance[1:] = np.maximum(
+                running_sample_variance[1:], 0.0
+            )
+
+        # Variance of the Monte Carlo mean:
+        #
+        #     Var(mean) = sample variance / number of paths
+        #
+        # This is also the square of the Monte Carlo standard error.
+        running_variance_of_mean = (
+            running_sample_variance / sample_counts
+        )
+
+        shown = self._sample_indices(len(values), start=1)
+
+        axes.plot(
+            sample_counts[shown],
+            running_variance_of_mean[shown],
+            color="#8A2BE2",
+        )
+
+        final_variance_of_mean = (
+            result.payoff_variance / result.config.num_paths
+        )
+
+        axes.axhline(
+            final_variance_of_mean,
+            color="darkred",
+            linestyle="--",
+            label=(
+                "Final variance of mean = "
+                f"{final_variance_of_mean:.8f}"
+            ),
+        )
+
+        axes.legend()
+        figure.tight_layout()
+
         return figure
 
     @staticmethod
