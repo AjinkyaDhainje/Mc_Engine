@@ -5,6 +5,7 @@ from .config import (
     ModelType,
     OptionType,
     PayoffType,
+    SamplingType,
     SimulationConfig,
 )
 from .manager import Manager
@@ -16,6 +17,7 @@ __all__ = [
     "ModelType",
     "OptionType",
     "PayoffType",
+    "SamplingType",
     "SimulationConfig",
     "SimulationResult",
 ]

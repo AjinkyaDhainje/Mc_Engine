@@ -6,6 +6,8 @@ A modular Python application in which a user selects:
 - Discretization: Euler or Milstein
 - Payoff: European vanilla or arithmetic-average Asian
 - Option direction: call or put
+- Sampling: standard Monte Carlo, deterministic quasi-Monte Carlo, or
+  randomized quasi-Monte Carlo
 
 It returns the discounted Monte Carlo option price, payoff variance, standard
 error, approximate 95% interval, runtime, and five diagnostic charts.
@@ -18,6 +20,7 @@ configurable_monte_carlo_engine/
 ├── monte_carlo/
 │   ├── config.py                  # Validated inputs and enums
 │   ├── models.py                  # Four commented one-step equations
+│   ├── sampling.py                # Standard, Sobol, and scrambled Sobol Z values
 │   ├── engine.py                  # Path generation and method dispatch
 │   ├── payoff.py                  # Vanilla/Asian payoff mathematics
 │   ├── manager.py                 # Runs the components in order
@@ -72,6 +75,19 @@ uses:
 - Mean log-jump size: mu_J in `log(J) ~ Normal(mu_J, sigma_J^2)`
 - Log-jump volatility: sigma_J
 
+For an Asian payoff, `asian_averaging_months` selects the final part of the path
+used in the arithmetic average. For example, a value of `3` averages simulated
+prices over the final three months before maturity.
+
+The sampling choices are:
+
+- Standard: independent pseudo-random Normal(0, 1) shocks
+- Quasi: deterministic non-scrambled Sobol points transformed to Normal(0, 1)
+- Quasi Random: scrambled Sobol points transformed to Normal(0, 1)
+
+Sobol sequences have their strongest balance properties when the number of
+paths is a power of two.
+
 Rates and volatilities use decimal notation: enter `0.05` for 5%.
 
 ## Adding another model
@@ -92,8 +108,9 @@ From the project directory:
 python -m unittest discover -v
 ```
 
-The tests execute all 16 model/discretization/payoff/direction combinations,
-reject invalid input, and compare a large GBM run with Black-Scholes.
+The tests execute all 48 model/discretization/payoff/direction/sampling
+combinations, validate the Asian averaging window, reject invalid input, and
+compare a large GBM run with Black-Scholes.
 
 ## Numerical notes
 

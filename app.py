@@ -9,6 +9,7 @@ from monte_carlo import (
     ModelType,
     OptionType,
     PayoffType,
+    SamplingType,
     SimulationConfig,
 )
 
@@ -30,6 +31,9 @@ with st.sidebar.form("simulation_inputs"):
     option_type = st.selectbox(
         "Option type", list(OptionType), format_func=lambda item: item.value
     )
+    sampling_type = st.selectbox(
+        "Sampling type", list(SamplingType), format_func=lambda item: item.value
+    )
 
     st.subheader("Market and option inputs")
     start_price = st.number_input("Start price", min_value=0.01, value=100.0, step=1.0)
@@ -43,6 +47,21 @@ with st.sidebar.form("simulation_inputs"):
     volatility = st.number_input(
         "Volatility", min_value=0.0, value=0.20, step=0.01, format="%.4f"
     )
+
+    asian_averaging_months = 12.0
+    if payoff is PayoffType.ASIAN:
+        max_averaging_months = float(maturity) * 12.0
+        asian_averaging_months = st.number_input(
+            "Average over final months",
+            min_value=0.01,
+            max_value=max_averaging_months,
+            value=min(12.0, max_averaging_months),
+            step=1.0,
+            help=(
+                "The Asian payoff uses simulated prices from this many months "
+                "immediately before maturity."
+            ),
+        )
 
     jump_intensity = 0.0
     jump_mean = 0.0
@@ -79,6 +98,7 @@ try:
         discretization=discretization,
         payoff=payoff,
         option_type=option_type,
+        sampling_type=sampling_type,
         start_price=float(start_price),
         strike=float(strike),
         maturity=float(maturity),
@@ -86,6 +106,7 @@ try:
         volatility=float(volatility),
         num_paths=int(num_paths),
         num_steps=int(num_steps),
+        asian_averaging_months=float(asian_averaging_months),
         random_seed=int(random_seed),
         jump_intensity=float(jump_intensity),
         jump_mean=float(jump_mean),
@@ -133,6 +154,12 @@ with st.expander("Selected configuration"):
             "discretization": config.discretization.value,
             "payoff": config.payoff.value,
             "option_type": config.option_type.value,
+            "sampling_type": config.sampling_type.value,
+            "asian_averaging_months": (
+                config.asian_averaging_months
+                if config.payoff is PayoffType.ASIAN
+                else "Not applicable"
+            ),
             "paths": config.num_paths,
             "steps": config.num_steps,
             "seed": config.random_seed,

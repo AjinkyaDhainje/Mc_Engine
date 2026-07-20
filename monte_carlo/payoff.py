@@ -17,7 +17,13 @@ class Payoff:
         if config.payoff is PayoffType.VANILLA:
             return self.vanilla(paths, config.strike, config.option_type)
         if config.payoff is PayoffType.ASIAN:
-            return self.asian(paths, config.strike, config.option_type)
+            return self.asian(
+                paths,
+                config.strike,
+                config.option_type,
+                config.maturity,
+                config.asian_averaging_months,
+            )
         raise ValueError(f"Unsupported payoff: {config.payoff.value}.")
 
     @staticmethod
@@ -41,23 +47,40 @@ class Payoff:
 
     @staticmethod
     def asian(
-        paths: FloatArray, strike: float, option_type: OptionType
+        paths: FloatArray,
+        strike: float,
+        option_type: OptionType,
+        maturity: float,
+        averaging_months: float,
     ) -> FloatArray:
         """Return an arithmetic-average Asian payoff for every path.
 
-        The monitoring average uses every simulated observation after time zero:
+        The user chooses how many months immediately before maturity form the
+        averaging window. If dt = maturity / num_steps, the number of simulated
+        observations in that window is
 
-            A = (S_t1 + S_t2 + ... + S_tM) / M.
+            M = ceil((averaging_months / 12) / dt).
+
+        The calculation takes the final M observations from each path:
+
+            A = (S_(T-M+1) + ... + S_T) / M.
 
         The fixed-strike payoff is then
 
             Asian call = max(A - K, 0)
             Asian put  = max(K - A, 0).
 
-        Excluding the known initial price follows the common convention that
-        monitoring starts after inception.
+        Using ceil means the selected window is never shortened when its length
+        does not divide exactly into the simulation grid. When the selected
+        window is the full maturity, the known time-zero price is still excluded
+        and all simulated post-inception observations are used.
         """
-        arithmetic_average = np.mean(paths[:, 1:], axis=1)
+        num_steps = paths.shape[1] - 1
+        dt = maturity / num_steps
+        averaging_years = averaging_months / 12.0
+        observations = min(num_steps, max(1, int(np.ceil(averaging_years / dt))))
+        averaging_window = paths[:, -observations:]
+        arithmetic_average = np.mean(averaging_window, axis=1)
         if option_type is OptionType.CALL:
             return np.maximum(arithmetic_average - strike, 0.0)
         return np.maximum(strike - arithmetic_average, 0.0)

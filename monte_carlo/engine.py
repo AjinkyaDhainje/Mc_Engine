@@ -5,12 +5,14 @@ from collections.abc import Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from .config import DiscretizationType, ModelType, SimulationConfig
+from .config import DiscretizationType, ModelType, SamplingType, SimulationConfig
 from .models import Model
+from .sampling import Sampling
 
 
 FloatArray = NDArray[np.float64]
 StepMethod = Callable[..., FloatArray]
+SamplingMethod = Callable[[int, int, int | None], FloatArray]
 
 
 class Engine:
@@ -23,9 +25,31 @@ class Engine:
         (ModelType.MERTON_JUMP, DiscretizationType.MILSTEIN): Model.merton_jump_milstein,
     }
 
+    _SAMPLING_METHODS: dict[SamplingType, SamplingMethod] = {
+        SamplingType.STANDARD: Sampling.standard,
+        SamplingType.QUASI: Sampling.quasi,
+        SamplingType.QUASI_RANDOM: Sampling.quasi_random,
+    }
+
     def generate_paths(self, config: SimulationConfig) -> FloatArray:
         """Return an array shaped ``(num_paths, num_steps + 1)``."""
-        rng = np.random.default_rng(config.random_seed)
+        # The selected Sampling method controls only the diffusion shocks Z.
+        # Jump counts and jump sizes remain model-specific random quantities and
+        # use a separate stream below, avoiding correlation with the Z matrix.
+        try:
+            sampling_method = self._SAMPLING_METHODS[config.sampling_type]
+        except KeyError as error:
+            raise ValueError(
+                f"Unsupported sampling type: {config.sampling_type.value}."
+            ) from error
+
+        normal_draws = sampling_method(
+            config.num_paths, config.num_steps, config.random_seed
+        )
+        jump_seed = (
+            None if config.random_seed is None else config.random_seed + 1
+        )
+        jump_rng = np.random.default_rng(jump_seed)
         dt = config.maturity / config.num_steps
         paths = np.empty((config.num_paths, config.num_steps + 1), dtype=float)
         paths[:, 0] = config.start_price
@@ -39,15 +63,17 @@ class Engine:
             ) from error
 
         for step in range(1, config.num_steps + 1):
-            normal_draw = rng.standard_normal(config.num_paths)
+            normal_draw = normal_draws[:, step - 1]
             step_inputs: dict[str, object] = {}
 
             if config.model is ModelType.MERTON_JUMP:
                 # Conditional on N jumps, the sum of N independent Normal jump
                 # log-sizes is Normal(N*mu_J, N*sigma_J^2). This avoids an inner
                 # loop over individual jumps while preserving the distribution.
-                jump_counts = rng.poisson(config.jump_intensity * dt, config.num_paths)
-                jump_normal = rng.standard_normal(config.num_paths)
+                jump_counts = jump_rng.poisson(
+                    config.jump_intensity * dt, config.num_paths
+                )
+                jump_normal = jump_rng.standard_normal(config.num_paths)
                 jump_log_sum = (
                     jump_counts * config.jump_mean
                     + np.sqrt(jump_counts) * config.jump_volatility * jump_normal
