@@ -9,8 +9,8 @@ A modular Python application in which a user selects:
 - Sampling: standard Monte Carlo, deterministic quasi-Monte Carlo, or
   randomized quasi-Monte Carlo
 
-It returns the discounted Monte Carlo option price, payoff variance, standard
-error, approximate 95% interval, runtime, and five diagnostic charts.
+It returns the discounted Monte Carlo option price, standard error, approximate
+95% confidence interval, runtime, and four diagnostic charts.
 
 ## Project structure
 
@@ -68,16 +68,15 @@ Streamlit will print a local URL, usually `http://localhost:8501`.
 ## Inputs
 
 All models use start price, strike, maturity, risk-free rate, volatility, number
-of paths, number of time steps, and random seed. The Merton model additionally
-uses:
+of paths, and number of time steps. The Merton model additionally uses:
 
 - Jump intensity: expected number of jumps per year, lambda
 - Mean log-jump size: mu_J in `log(J) ~ Normal(mu_J, sigma_J^2)`
 - Log-jump volatility: sigma_J
 
-For an Asian payoff, `asian_averaging_months` selects the final part of the path
-used in the arithmetic average. For example, a value of `3` averages simulated
-prices over the final three months before maturity.
+For an Asian payoff, `averaging_days` selects the final part of the path used in
+the arithmetic average. For example, a value of `90` averages simulated prices
+over approximately the final 90 days before maturity.
 
 The sampling choices are:
 
@@ -90,15 +89,31 @@ paths is a power of two.
 
 Rates and volatilities use decimal notation: enter `0.05` for 5%.
 
+The application accepts up to 1,000,000 paths. Pricing, terminal-price, payoff,
+and convergence calculations use every simulated path. To keep memory and UI
+transfer sizes controlled, the engine processes simulations in batches, stores
+only the first 10,000 complete paths for display, and plots 100 evenly spaced
+paths from that display subset. Final-price charts receive only terminal prices,
+and payoff charts receive only discounted payoffs.
+
 ## Adding another model
 
 1. Add its name to `ModelType` in `monte_carlo/config.py`.
 2. Add Euler and Milstein one-step methods to `Model` in `models.py`.
-3. Register both combinations in `Engine._METHODS` in `engine.py`.
-4. Add any model-specific inputs to `SimulationConfig` and the UI.
+3. Register one `ModelDefinition` in `Engine._MODELS` in `engine.py`.
+4. Add its input descriptions to `MODEL_PARAMETER_SPECS` in `config.py`.
 
-The Manager, Payoff, Result, and Visualisation classes do not need to change
-when a new path model is introduced.
+The generic configuration, validation, and UI input flow then handle those
+parameters without model-specific branches.
+
+## Adding another payoff
+
+1. Add its name to `PayoffType` in `monte_carlo/config.py`.
+2. Add one payoff method with the common calling convention in `payoff.py`.
+3. Register its method name in `Payoff._METHOD_NAMES`.
+4. Add any extra inputs to `PAYOFF_PARAMETER_SPECS` in `config.py`.
+
+The Manager and UI do not need payoff-specific branches.
 
 ## Tests
 
@@ -109,14 +124,16 @@ python -m unittest discover -v
 ```
 
 The tests execute all 48 model/discretization/payoff/direction/sampling
-combinations, validate the Asian averaging window, reject invalid input, and
-compare a large GBM run with Black-Scholes.
+combinations, validate the Asian averaging window, reject invalid input, verify
+the display-data cap, accept one million paths, and compare a large GBM run with
+Black-Scholes.
 
 ## Numerical notes
 
 - Pricing assumes a constant risk-free rate and risk-neutral dynamics.
-- The reported variance is the sample variance of discounted path payoffs.
-- The standard error is `sqrt(variance / number_of_paths)`.
+- The standard error is `sample standard deviation / sqrt(number_of_paths)`.
+- The reported approximate 95% confidence interval is the estimated price plus
+  or minus `1.96 * standard error`.
 - Euler and Milstein are educational discretizations. GBM also has an exact
   transition, but it is intentionally not used because the application compares
   the two requested numerical methods.

@@ -10,6 +10,26 @@ from scipy.stats import norm, qmc
 FloatArray = NDArray[np.float64]
 
 
+class _StandardStream:
+    def __init__(self, num_steps: int) -> None:
+        self.num_steps = num_steps
+        self.rng = np.random.default_rng()
+
+    def draw(self, num_paths: int) -> FloatArray:
+        return self.rng.standard_normal((num_paths, self.num_steps))
+
+
+class _SobolStream:
+    def __init__(self, num_steps: int, scramble: bool, skip_first: bool) -> None:
+        self.sobol = qmc.Sobol(d=num_steps, scramble=scramble)
+        if skip_first:
+            self.sobol.fast_forward(1)
+
+    def draw(self, num_paths: int) -> FloatArray:
+        uniforms = Sampling._sobol_sample(self.sobol, num_paths)
+        return Sampling._uniform_to_normal(uniforms)
+
+
 class Sampling:
     """Generate only the standard-normal shocks ``Z`` used by a model.
 
@@ -26,26 +46,19 @@ class Sampling:
     """
 
     @staticmethod
-    def standard(
-        num_paths: int, num_steps: int, random_seed: int | None
-    ) -> FloatArray:
+    def standard(num_paths: int, num_steps: int) -> FloatArray:
         """Return independent pseudo-random standard-normal values.
 
         NumPy's random generator first produces pseudo-random uniform bits and
-        transforms them into independent Normal(0, 1) values. Supplying a seed
-        makes the matrix reproducible, which is useful for tests and for fair
-        comparisons between model or discretization choices.
+        transforms them into independent Normal(0, 1) values.
 
         This is ordinary Monte Carlo sampling. Its estimator error normally
         decreases at a rate proportional to 1/sqrt(num_paths).
         """
-        rng = np.random.default_rng(random_seed)
-        return rng.standard_normal((num_paths, num_steps))
+        return Sampling.standard_stream(num_steps).draw(num_paths)
 
     @staticmethod
-    def quasi(
-        num_paths: int, num_steps: int, random_seed: int | None = None
-    ) -> FloatArray:
+    def quasi(num_paths: int, num_steps: int) -> FloatArray:
         """Return deterministic quasi-Monte Carlo normal values.
 
         A non-scrambled Sobol sequence fills the unit hypercube more evenly than
@@ -57,35 +70,40 @@ class Sampling:
 
         The first deterministic Sobol point is all zeros. It is skipped because
         Phi^(-1)(0) is negative infinity. This method intentionally ignores the
-        seed because the non-scrambled sequence is deterministic. Sobol balance
-        is strongest when ``num_paths`` is a power of two, although arbitrary
-        positive path counts are supported here.
+        Sobol balance is strongest when ``num_paths`` is a power of two,
+        although arbitrary positive path counts are supported here.
         """
-        del random_seed
-        sobol = qmc.Sobol(d=num_steps, scramble=False)
-        sobol.fast_forward(1)
-        uniforms = Sampling._sobol_sample(sobol, num_paths)
-        return Sampling._uniform_to_normal(uniforms)
+        return Sampling.quasi_stream(num_steps).draw(num_paths)
 
     @staticmethod
-    def quasi_random(
-        num_paths: int, num_steps: int, random_seed: int | None
-    ) -> FloatArray:
+    def quasi_random(num_paths: int, num_steps: int) -> FloatArray:
         """Return randomized quasi-Monte Carlo normal values.
 
         This uses a scrambled Sobol sequence. Scrambling retains the improved
         space-filling behaviour of quasi-Monte Carlo while adding randomness,
         which permits independent repeated runs and conventional error studies.
-        The seed controls the scramble, so the same seed reproduces the same Z
-        matrix. As in ``quasi``, the inverse normal CDF maps Sobol uniforms to
-        Normal(0, 1) shocks.
+        As in ``quasi``, the inverse normal CDF maps Sobol uniforms to Normal(0,
+        1) shocks.
 
         This option is called "Quasi Random" in the UI to distinguish it from
         the completely deterministic non-scrambled Sobol sequence.
         """
-        sobol = qmc.Sobol(d=num_steps, scramble=True, seed=random_seed)
-        uniforms = Sampling._sobol_sample(sobol, num_paths)
-        return Sampling._uniform_to_normal(uniforms)
+        return Sampling.quasi_random_stream(num_steps).draw(num_paths)
+
+    @staticmethod
+    def standard_stream(num_steps: int) -> _StandardStream:
+        """Return a stateful standard-Monte-Carlo stream for batched runs."""
+        return _StandardStream(num_steps)
+
+    @staticmethod
+    def quasi_stream(num_steps: int) -> _SobolStream:
+        """Return one continuous deterministic Sobol stream."""
+        return _SobolStream(num_steps, scramble=False, skip_first=True)
+
+    @staticmethod
+    def quasi_random_stream(num_steps: int) -> _SobolStream:
+        """Return one continuous scrambled Sobol stream."""
+        return _SobolStream(num_steps, scramble=True, skip_first=False)
 
     @staticmethod
     def _sobol_sample(sobol: qmc.Sobol, num_paths: int) -> FloatArray:

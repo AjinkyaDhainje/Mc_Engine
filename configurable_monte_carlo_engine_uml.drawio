@@ -10,7 +10,7 @@
           <mxGeometry x="470" y="10" width="560" height="60" as="geometry"/>
         </mxCell>
 
-        <mxCell id="config" value="&lt;b&gt;SimulationConfig&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;frozen dataclass&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;+ model: ModelType&lt;br&gt;+ discretization: DiscretizationType&lt;br&gt;+ payoff: PayoffType&lt;br&gt;+ option_type: OptionType&lt;br&gt;+ start_price: float&lt;br&gt;+ strike: float&lt;br&gt;+ maturity: float&lt;br&gt;+ risk_free_rate: float&lt;br&gt;+ volatility: float&lt;br&gt;+ num_paths: int&lt;br&gt;+ num_steps: int&lt;br&gt;+ random_seed: int | None&lt;br&gt;+ jump_intensity: float&lt;br&gt;+ jump_mean: float&lt;br&gt;+ jump_volatility: float&lt;hr&gt;+ __post_init__(): None" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="config" value="&lt;b&gt;SimulationConfig&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;frozen dataclass&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;+ model: ModelType&lt;br&gt;+ discretization: DiscretizationType&lt;br&gt;+ payoff: PayoffType&lt;br&gt;+ option_type: OptionType&lt;br&gt;+ sampling_type: SamplingType&lt;br&gt;+ start_price: float&lt;br&gt;+ strike: float&lt;br&gt;+ maturity: float&lt;br&gt;+ risk_free_rate: float&lt;br&gt;+ volatility: float&lt;br&gt;+ num_paths: int&lt;br&gt;+ num_steps: int&lt;br&gt;+ model_parameters: Mapping&lt;br&gt;+ payoff_parameters: Mapping&lt;hr&gt;+ __post_init__(): None" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="40" y="100" width="330" height="390" as="geometry"/>
         </mxCell>
 
@@ -18,11 +18,11 @@
           <mxGeometry x="500" y="100" width="390" height="200" as="geometry"/>
         </mxCell>
 
-        <mxCell id="result" value="&lt;b&gt;SimulationResult&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;frozen dataclass&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;+ config: SimulationConfig&lt;br&gt;+ paths: ndarray&lt;br&gt;+ raw_payoffs: ndarray&lt;br&gt;+ discounted_payoffs: ndarray&lt;br&gt;+ option_price: float&lt;br&gt;+ payoff_variance: float&lt;br&gt;+ standard_error: float&lt;br&gt;+ elapsed_seconds: float&lt;hr&gt;+ time_grid: ndarray {property}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="result" value="&lt;b&gt;SimulationResult&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot;&gt;&amp;lt;&amp;lt;frozen dataclass&amp;gt;&amp;gt;&lt;/font&gt;&lt;hr&gt;+ config: SimulationConfig&lt;br&gt;+ display_paths: ndarray&lt;br&gt;+ terminal_prices: ndarray&lt;br&gt;+ discounted_payoffs: ndarray&lt;br&gt;+ option_price: float&lt;br&gt;+ standard_error: float&lt;br&gt;+ confidence_interval_low: float&lt;br&gt;+ confidence_interval_high: float&lt;br&gt;+ elapsed_seconds: float&lt;hr&gt;+ time_grid: ndarray {property}" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="1050" y="100" width="330" height="280" as="geometry"/>
         </mxCell>
 
-        <mxCell id="engine" value="&lt;b&gt;Engine&lt;/b&gt;&lt;hr&gt;- _METHODS: dict[(ModelType, DiscretizationType), StepMethod]&lt;hr&gt;+ generate_paths(config: SimulationConfig): ndarray" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#059669;fillColor=#ECFDF5;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="engine" value="&lt;b&gt;Engine&lt;/b&gt;&lt;hr&gt;- _MODELS: dict[ModelType, ModelDefinition]&lt;br&gt;- _SAMPLING_STREAMS: dict[SamplingType, factory]&lt;hr&gt;+ generate_paths(config): ndarray&lt;br&gt;+ generate_path_batches(config, batch_size): Iterator[ndarray]" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#059669;fillColor=#ECFDF5;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="400" y="400" width="380" height="140" as="geometry"/>
         </mxCell>
 
@@ -30,7 +30,7 @@
           <mxGeometry x="820" y="400" width="340" height="170" as="geometry"/>
         </mxCell>
 
-        <mxCell id="visualisation" value="&lt;b&gt;Visualisation&lt;/b&gt;&lt;hr&gt;+ create_all(result): dict[str, Figure]&lt;br&gt;+ plot_paths(result): Figure&lt;br&gt;+ plot_terminal_distribution(result): Figure&lt;br&gt;+ plot_payoff_distribution(result): Figure&lt;br&gt;+ plot_price_convergence(result): Figure&lt;br&gt;+ plot_variance_convergence(result): Figure&lt;hr&gt;- _new_figure(...): (Figure, Axes)&lt;br&gt;- _sample_indices(...): ndarray" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#059669;fillColor=#ECFDF5;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="visualisation" value="&lt;b&gt;Visualisation&lt;/b&gt;&lt;hr&gt;+ create_all(result): dict[str, Figure]&lt;br&gt;+ plot_paths(result): Figure&lt;br&gt;+ plot_terminal_distribution(result): Figure&lt;br&gt;+ plot_payoff_distribution(result): Figure&lt;br&gt;+ plot_price_convergence(result): Figure&lt;hr&gt;- _new_figure(...): (Figure, Axes)&lt;br&gt;- _sample_indices(...): ndarray" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;strokeWidth=2;strokeColor=#059669;fillColor=#ECFDF5;fontColor=#111827;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="1190" y="430" width="350" height="260" as="geometry"/>
         </mxCell>
 
@@ -54,7 +54,7 @@
           <mxGeometry x="200" y="700" width="170" height="110" as="geometry"/>
         </mxCell>
 
-        <mxCell id="extensionNote" value="&lt;b&gt;Extension point&lt;/b&gt;&lt;br&gt;To add a model:&lt;br&gt;1. Add a ModelType value&lt;br&gt;2. Add Euler and Milstein methods to Model&lt;br&gt;3. Register both methods in Engine._METHODS&lt;br&gt;&lt;br&gt;Manager, Payoff and Visualisation remain unchanged." style="shape=note;whiteSpace=wrap;html=1;size=18;align=left;verticalAlign=top;spacing=12;strokeColor=#D97706;fillColor=#FEF3C7;fontColor=#78350F;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="extensionNote" value="&lt;b&gt;Extension point&lt;/b&gt;&lt;br&gt;To add a component:&lt;br&gt;1. Add its enum value&lt;br&gt;2. Add its calculation method&lt;br&gt;3. Add one registry definition&lt;br&gt;4. Declare extra ParameterSpecs&lt;br&gt;&lt;br&gt;Manager and UI remain branch-free." style="shape=note;whiteSpace=wrap;html=1;size=18;align=left;verticalAlign=top;spacing=12;strokeColor=#D97706;fillColor=#FEF3C7;fontColor=#78350F;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="1040" y="750" width="340" height="170" as="geometry"/>
         </mxCell>
 

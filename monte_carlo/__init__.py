@@ -2,8 +2,11 @@
 
 from .config import (
     DiscretizationType,
+    MODEL_PARAMETER_SPECS,
     ModelType,
     OptionType,
+    PAYOFF_PARAMETER_SPECS,
+    ParameterSpec,
     PayoffType,
     SamplingType,
     SimulationConfig,
@@ -13,9 +16,12 @@ from .results import SimulationResult
 
 __all__ = [
     "DiscretizationType",
+    "MODEL_PARAMETER_SPECS",
     "Manager",
     "ModelType",
     "OptionType",
+    "PAYOFF_PARAMETER_SPECS",
+    "ParameterSpec",
     "PayoffType",
     "SamplingType",
     "SimulationConfig",

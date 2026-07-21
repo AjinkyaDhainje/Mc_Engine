@@ -5,13 +5,43 @@ import streamlit as st
 
 from monte_carlo import (
     DiscretizationType,
+    MODEL_PARAMETER_SPECS,
     Manager,
     ModelType,
     OptionType,
+    PAYOFF_PARAMETER_SPECS,
+    ParameterSpec,
     PayoffType,
     SamplingType,
     SimulationConfig,
 )
+
+
+def render_component_inputs(
+    specs: tuple[ParameterSpec, ...], component: str, maturity: float
+) -> dict[str, float]:
+    """Render any registered component inputs through one reusable UI flow."""
+    values: dict[str, float] = {}
+    for spec in specs:
+        default = (
+            min(spec.default, maturity * 365.0)
+            if spec.maturity_days_limit
+            else spec.default
+        )
+        input_options: dict[str, object] = {
+            "label": spec.label,
+            "value": default,
+            "step": spec.step,
+            "key": f"{component}_{spec.key}",
+        }
+        if spec.min_value is not None:
+            input_options["min_value"] = spec.min_value
+        if spec.number_format is not None:
+            input_options["format"] = spec.number_format
+        if spec.help is not None:
+            input_options["help"] = spec.help
+        values[spec.key] = float(st.number_input(**input_options))
+    return values
 
 
 st.set_page_config(page_title="Configurable Monte Carlo Engine", layout="wide")
@@ -21,20 +51,8 @@ st.caption(
     "the price and simulation diagnostics."
 )
 
-with st.sidebar.form("simulation_inputs"):
+with st.sidebar:
     st.header("Simulation configuration")
-    model = st.selectbox("Model", list(ModelType), format_func=lambda item: item.value)
-    discretization = st.selectbox(
-        "Discretization", list(DiscretizationType), format_func=lambda item: item.value
-    )
-    payoff = st.selectbox("Payoff", list(PayoffType), format_func=lambda item: item.value)
-    option_type = st.selectbox(
-        "Option type", list(OptionType), format_func=lambda item: item.value
-    )
-    sampling_type = st.selectbox(
-        "Sampling type", list(SamplingType), format_func=lambda item: item.value
-    )
-
     st.subheader("Market and option inputs")
     start_price = st.number_input("Start price", min_value=0.01, value=100.0, step=1.0)
     strike = st.number_input("Strike", min_value=0.01, value=100.0, step=1.0)
@@ -48,45 +66,37 @@ with st.sidebar.form("simulation_inputs"):
         "Volatility", min_value=0.0, value=0.20, step=0.01, format="%.4f"
     )
 
-    asian_averaging_months = 12.0
-    if payoff is PayoffType.ASIAN:
-        max_averaging_months = float(maturity) * 12.0
-        asian_averaging_months = st.number_input(
-            "Average over final months",
-            min_value=0.01,
-            max_value=max_averaging_months,
-            value=min(12.0, max_averaging_months),
-            step=1.0,
-            help=(
-                "The Asian payoff uses simulated prices from this many months "
-                "immediately before maturity."
-            ),
-        )
-
-    jump_intensity = 0.0
-    jump_mean = 0.0
-    jump_volatility = 0.0
-    if model is ModelType.MERTON_JUMP:
-        st.subheader("Merton jump inputs")
-        jump_intensity = st.number_input(
-            "Jump intensity (expected jumps/year)", min_value=0.0, value=0.75, step=0.05
-        )
-        jump_mean = st.number_input(
-            "Mean log-jump size", value=-0.10, step=0.01, format="%.4f"
-        )
-        jump_volatility = st.number_input(
-            "Log-jump volatility", min_value=0.0, value=0.20, step=0.01, format="%.4f"
-        )
+    st.subheader("Component choices")
+    model = st.selectbox("Model", list(ModelType), format_func=lambda item: item.value)
+    model_parameters = render_component_inputs(
+        MODEL_PARAMETER_SPECS[model], "model", float(maturity)
+    )
+    discretization = st.selectbox(
+        "Discretization", list(DiscretizationType), format_func=lambda item: item.value
+    )
+    payoff = st.selectbox("Payoff", list(PayoffType), format_func=lambda item: item.value)
+    payoff_parameters = render_component_inputs(
+        PAYOFF_PARAMETER_SPECS[payoff], "payoff", float(maturity)
+    )
+    option_type = st.selectbox(
+        "Option type", list(OptionType), format_func=lambda item: item.value
+    )
+    sampling_type = st.selectbox(
+        "Sampling type", list(SamplingType), format_func=lambda item: item.value
+    )
 
     st.subheader("Numerical inputs")
     num_paths = st.number_input(
-        "Number of paths", min_value=100, max_value=200_000, value=10_000, step=1_000
+        "Number of paths",
+        min_value=100,
+        max_value=1_000_000,
+        value=10_000,
+        step=1_000,
     )
     num_steps = st.number_input(
         "Time steps", min_value=1, max_value=2_000, value=252, step=1
     )
-    random_seed = st.number_input("Random seed", min_value=0, value=42, step=1)
-    submitted = st.form_submit_button("Run simulation", type="primary")
+    submitted = st.button("Run simulation", type="primary")
 
 if not submitted:
     st.info("Choose the inputs in the sidebar and click **Run simulation**.")
@@ -106,11 +116,8 @@ try:
         volatility=float(volatility),
         num_paths=int(num_paths),
         num_steps=int(num_steps),
-        asian_averaging_months=float(asian_averaging_months),
-        random_seed=int(random_seed),
-        jump_intensity=float(jump_intensity),
-        jump_mean=float(jump_mean),
-        jump_volatility=float(jump_volatility),
+        model_parameters=model_parameters,
+        payoff_parameters=payoff_parameters,
     )
     with st.spinner("Generating paths and calculating the option price..."):
         manager = Manager()
@@ -120,27 +127,21 @@ except (ValueError, MemoryError) as error:
     st.error(f"Simulation could not be completed: {error}")
     st.stop()
 
-ci_half_width = 1.96 * result.standard_error
 metric_columns = st.columns(4)
 metric_columns[0].metric("Option price", f"{result.option_price:.4f}")
-metric_columns[1].metric("Payoff variance", f"{result.payoff_variance:.4f}")
+metric_columns[1].metric(
+    "95% confidence interval",
+    f"[{result.confidence_interval_low:.4f}, {result.confidence_interval_high:.4f}]",
+)
 metric_columns[2].metric("Standard error", f"{result.standard_error:.4f}")
 metric_columns[3].metric("Simulation time", f"{result.elapsed_seconds:.3f} s")
-st.caption(
-    f"Approximate 95% Monte Carlo interval: "
-    f"[{result.option_price - ci_half_width:.4f}, "
-    f"{result.option_price + ci_half_width:.4f}]"
-)
 
-tabs = st.tabs(
-    ["Paths", "Final prices", "Payoffs", "Price convergence", "Variance"]
-)
+tabs = st.tabs(["Paths", "Final prices", "Payoffs", "Price convergence"])
 figure_keys = [
     "paths",
     "terminal_distribution",
     "payoff_distribution",
     "price_convergence",
-    "variance_convergence",
 ]
 for tab, key in zip(tabs, figure_keys, strict=True):
     with tab:
@@ -155,13 +156,9 @@ with st.expander("Selected configuration"):
             "payoff": config.payoff.value,
             "option_type": config.option_type.value,
             "sampling_type": config.sampling_type.value,
-            "asian_averaging_months": (
-                config.asian_averaging_months
-                if config.payoff is PayoffType.ASIAN
-                else "Not applicable"
-            ),
+            "model_parameters": dict(config.model_parameters),
+            "payoff_parameters": dict(config.payoff_parameters),
             "paths": config.num_paths,
             "steps": config.num_steps,
-            "seed": config.random_seed,
         }
     )

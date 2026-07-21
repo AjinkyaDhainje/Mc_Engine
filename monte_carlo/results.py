@@ -14,12 +14,13 @@ FloatArray = NDArray[np.float64]
 @dataclass(frozen=True)
 class SimulationResult:
     config: SimulationConfig
-    paths: FloatArray
-    raw_payoffs: FloatArray
+    display_paths: FloatArray
+    terminal_prices: FloatArray
     discounted_payoffs: FloatArray
     option_price: float
-    payoff_variance: float
     standard_error: float
+    confidence_interval_low: float
+    confidence_interval_high: float
     elapsed_seconds: float
 
     @property

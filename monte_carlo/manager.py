@@ -25,27 +25,50 @@ class Manager:
         self.visualisation = visualisation or Visualisation()
 
     def start(self, config: SimulationConfig) -> SimulationResult:
-        """Run one pricing simulation and return all numerical outputs."""
+        """Price every path while retaining at most 10,000 paths for display."""
         started_at = perf_counter()
-        paths = self.engine.generate_paths(config)
-        raw_payoffs = self.payoff.calculate(paths, config)
-        discounted_payoffs = self.payoff.discount(
-            raw_payoffs, config.risk_free_rate, config.maturity
+        display_limit = min(config.num_paths, 10_000)
+        display_paths = np.empty(
+            (display_limit, config.num_steps + 1), dtype=float
         )
+        terminal_prices = np.empty(config.num_paths, dtype=float)
+        discounted_payoffs = np.empty(config.num_paths, dtype=float)
+
+        offset = 0
+        display_offset = 0
+        for paths in self.engine.generate_path_batches(config):
+            count = len(paths)
+            raw_payoffs = self.payoff.calculate(paths, config)
+            batch_payoffs = self.payoff.discount(
+                raw_payoffs, config.risk_free_rate, config.maturity
+            )
+            terminal_prices[offset : offset + count] = paths[:, -1]
+            discounted_payoffs[offset : offset + count] = batch_payoffs
+
+            retained = min(count, display_limit - display_offset)
+            if retained > 0:
+                display_paths[display_offset : display_offset + retained] = paths[
+                    :retained
+                ]
+                display_offset += retained
+            offset += count
 
         option_price = float(np.mean(discounted_payoffs))
-        payoff_variance = float(np.var(discounted_payoffs, ddof=1))
-        standard_error = float(np.sqrt(payoff_variance / config.num_paths))
+        standard_error = float(
+            np.std(discounted_payoffs, ddof=1) / np.sqrt(config.num_paths)
+        )
+        confidence_half_width = 1.96 * standard_error
         elapsed_seconds = perf_counter() - started_at
 
         return SimulationResult(
             config=config,
-            paths=paths,
-            raw_payoffs=raw_payoffs,
+            display_paths=display_paths,
+            terminal_prices=terminal_prices,
             discounted_payoffs=discounted_payoffs,
             option_price=option_price,
-            payoff_variance=payoff_variance,
             standard_error=standard_error,
+            confidence_interval_low=option_price - confidence_half_width,
+            confidence_interval_high=option_price + confidence_half_width,
             elapsed_seconds=elapsed_seconds,
         )
 

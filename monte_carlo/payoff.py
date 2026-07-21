@@ -12,23 +12,32 @@ FloatArray = NDArray[np.float64]
 class Payoff:
     """Calculate one payoff per simulated path."""
 
+    _METHOD_NAMES = {
+        PayoffType.VANILLA: "vanilla",
+        PayoffType.ASIAN: "asian",
+    }
+    _DIRECTIONS = {OptionType.CALL: 1.0, OptionType.PUT: -1.0}
+
     def calculate(self, paths: FloatArray, config: SimulationConfig) -> FloatArray:
-        """Dispatch to the payoff selected by the user."""
-        if config.payoff is PayoffType.VANILLA:
-            return self.vanilla(paths, config.strike, config.option_type)
-        if config.payoff is PayoffType.ASIAN:
-            return self.asian(
-                paths,
-                config.strike,
-                config.option_type,
-                config.maturity,
-                config.asian_averaging_months,
-            )
-        raise ValueError(f"Unsupported payoff: {config.payoff.value}.")
+        """Run the registered payoff through one uniform calling convention."""
+        try:
+            method = getattr(self, self._METHOD_NAMES[config.payoff])
+        except KeyError as error:
+            raise ValueError(f"Unsupported payoff: {config.payoff.value}.") from error
+        return method(
+            paths=paths,
+            strike=config.strike,
+            option_type=config.option_type,
+            maturity=config.maturity,
+            **config.payoff_parameters,
+        )
 
     @staticmethod
     def vanilla(
-        paths: FloatArray, strike: float, option_type: OptionType
+        paths: FloatArray,
+        strike: float,
+        option_type: OptionType,
+        **_: object,
     ) -> FloatArray:
         """Return the European vanilla payoff for every path.
 
@@ -41,9 +50,8 @@ class Payoff:
         option only when exercising is beneficial.
         """
         terminal_prices = paths[:, -1]
-        if option_type is OptionType.CALL:
-            return np.maximum(terminal_prices - strike, 0.0)
-        return np.maximum(strike - terminal_prices, 0.0)
+        direction = Payoff._DIRECTIONS[option_type]
+        return np.maximum(direction * (terminal_prices - strike), 0.0)
 
     @staticmethod
     def asian(
@@ -51,15 +59,15 @@ class Payoff:
         strike: float,
         option_type: OptionType,
         maturity: float,
-        averaging_months: float,
+        averaging_days: float,
     ) -> FloatArray:
         """Return an arithmetic-average Asian payoff for every path.
 
-        The user chooses how many months immediately before maturity form the
+        The user chooses how many days immediately before maturity form the
         averaging window. If dt = maturity / num_steps, the number of simulated
         observations in that window is
 
-            M = ceil((averaging_months / 12) / dt).
+            M = ceil((averaging_days / 365) / dt).
 
         The calculation takes the final M observations from each path:
 
@@ -77,13 +85,12 @@ class Payoff:
         """
         num_steps = paths.shape[1] - 1
         dt = maturity / num_steps
-        averaging_years = averaging_months / 12.0
+        averaging_years = averaging_days / 365.0
         observations = min(num_steps, max(1, int(np.ceil(averaging_years / dt))))
         averaging_window = paths[:, -observations:]
         arithmetic_average = np.mean(averaging_window, axis=1)
-        if option_type is OptionType.CALL:
-            return np.maximum(arithmetic_average - strike, 0.0)
-        return np.maximum(strike - arithmetic_average, 0.0)
+        direction = Payoff._DIRECTIONS[option_type]
+        return np.maximum(direction * (arithmetic_average - strike), 0.0)
 
     @staticmethod
     def discount(payoffs: FloatArray, risk_free_rate: float, maturity: float) -> FloatArray:

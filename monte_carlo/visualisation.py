@@ -8,7 +8,7 @@ from .results import SimulationResult
 
 
 class Visualisation:
-    """Create paths, distributions, convergence, and variance charts."""
+    """Create charts from only the arrays each chart actually needs."""
 
     def create_all(self, result: SimulationResult) -> dict[str, Figure]:
         return {
@@ -16,7 +16,6 @@ class Visualisation:
             "terminal_distribution": self.plot_terminal_distribution(result),
             "payoff_distribution": self.plot_payoff_distribution(result),
             "price_convergence": self.plot_price_convergence(result),
-            "variance_convergence": self.plot_variance_of_mean_convergence(result),
         }
 
     @staticmethod
@@ -32,10 +31,16 @@ class Visualisation:
         figure, axes = self._new_figure(
             "Sample simulated asset paths", "Time (years)", "Asset price"
         )
-        count = min(max_paths, result.config.num_paths)
-        # Evenly spaced indices make the displayed sample deterministic.
-        indices = np.linspace(0, result.config.num_paths - 1, count, dtype=int)
-        axes.plot(result.time_grid, result.paths[indices].T, alpha=0.35, linewidth=0.8)
+        count = min(max_paths, len(result.display_paths))
+        # The result contains at most the first 10,000 paths. Select 100 evenly
+        # spaced rows from that UI-safe subset rather than sending every path.
+        indices = np.linspace(0, len(result.display_paths) - 1, count, dtype=int)
+        axes.plot(
+            result.time_grid,
+            result.display_paths[indices].T,
+            alpha=0.35,
+            linewidth=0.8,
+        )
         axes.axhline(
             result.config.strike,
             color="black",
@@ -51,7 +56,7 @@ class Visualisation:
         figure, axes = self._new_figure(
             "Final asset-price distribution", "Asset price at maturity", "Frequency"
         )
-        terminal_prices = result.paths[:, -1]
+        terminal_prices = result.terminal_prices
         axes.hist(terminal_prices, bins=50, color="#4169E1", alpha=0.8)
         axes.axvline(
             np.mean(terminal_prices),
@@ -87,16 +92,16 @@ class Visualisation:
         running_mean = np.cumsum(values) / sample_counts
 
         cumulative_sum_squares = np.cumsum(values**2)
-        running_variance = np.zeros_like(running_mean)
+        running_std = np.zeros_like(running_mean)
         if len(values) > 1:
-            running_variance[1:] = (
+            centered_sum_squares = (
                 cumulative_sum_squares[1:]
                 - sample_counts[1:] * running_mean[1:] ** 2
-            ) / (sample_counts[1:] - 1)
-            running_variance[1:] = np.maximum(running_variance[1:], 0.0)
-        confidence_half_width = 1.96 * np.sqrt(
-            running_variance / np.maximum(sample_counts, 1)
-        )
+            )
+            running_std[1:] = np.sqrt(
+                np.maximum(centered_sum_squares, 0.0) / (sample_counts[1:] - 1)
+            )
+        confidence_half_width = 1.96 * running_std / np.sqrt(sample_counts)
 
         shown = self._sample_indices(len(values))
         axes.plot(sample_counts[shown], running_mean[shown], color="#4169E1")
@@ -108,106 +113,20 @@ class Visualisation:
             alpha=0.18,
             label="Approx. 95% confidence interval",
         )
-        axes.axhline(result.option_price, color="darkred", linestyle="--", label="Final estimate")
-        axes.legend()
-        figure.tight_layout()
-        return figure
-
-    def plot_variance_convergence(self, result: SimulationResult) -> Figure:
-        figure, axes = self._new_figure(
-            "Payoff-variance convergence", "Number of paths", "Sample variance"
-        )
-        values = result.discounted_payoffs
-        sample_counts = np.arange(1, len(values) + 1)
-        running_mean = np.cumsum(values) / sample_counts
-        cumulative_sum_squares = np.cumsum(values**2)
-        running_variance = np.zeros_like(values)
-        if len(values) > 1:
-            running_variance[1:] = (
-                cumulative_sum_squares[1:]
-                - sample_counts[1:] * running_mean[1:] ** 2
-            ) / (sample_counts[1:] - 1)
-            running_variance[1:] = np.maximum(running_variance[1:], 0.0)
-
-        shown = self._sample_indices(len(values), start=1)
-        axes.plot(sample_counts[shown], running_variance[shown], color="#8A2BE2")
         axes.axhline(
-            result.payoff_variance,
+            result.option_price,
             color="darkred",
             linestyle="--",
-            label=f"Final variance = {result.payoff_variance:.4f}",
+            label="Final estimate",
         )
         axes.legend()
         figure.tight_layout()
-        return figure
-    
-    def plot_variance_of_mean_convergence(
-        self, result: SimulationResult
-    ) -> Figure:
-        figure, axes = self._new_figure(
-            "Variance of Monte Carlo mean convergence",
-            "Number of paths",
-            "Estimated variance of mean",
-        )
-
-        values = result.discounted_payoffs
-        sample_counts = np.arange(1, len(values) + 1)
-
-        running_mean = np.cumsum(values) / sample_counts
-        cumulative_sum_squares = np.cumsum(values**2)
-
-        # Sample variance of the individual discounted payoffs.
-        running_sample_variance = np.zeros_like(values, dtype=float)
-
-        if len(values) > 1:
-            running_sample_variance[1:] = (
-                cumulative_sum_squares[1:]
-                - sample_counts[1:] * running_mean[1:] ** 2
-            ) / (sample_counts[1:] - 1)
-
-            # Protect against tiny negative values caused by floating-point errors.
-            running_sample_variance[1:] = np.maximum(
-                running_sample_variance[1:], 0.0
-            )
-
-        # Variance of the Monte Carlo mean:
-        #
-        #     Var(mean) = sample variance / number of paths
-        #
-        # This is also the square of the Monte Carlo standard error.
-        running_variance_of_mean = (
-            running_sample_variance / sample_counts
-        )
-
-        shown = self._sample_indices(len(values), start=1)
-
-        axes.plot(
-            sample_counts[shown],
-            running_variance_of_mean[shown],
-            color="#8A2BE2",
-        )
-
-        final_variance_of_mean = (
-            result.payoff_variance / result.config.num_paths
-        )
-
-        axes.axhline(
-            final_variance_of_mean,
-            color="darkred",
-            linestyle="--",
-            label=(
-                "Final variance of mean = "
-                f"{final_variance_of_mean:.8f}"
-            ),
-        )
-
-        axes.legend()
-        figure.tight_layout()
-
         return figure
 
     @staticmethod
-    def _sample_indices(length: int, max_points: int = 1500, start: int = 0) -> np.ndarray:
+    def _sample_indices(
+        length: int, max_points: int = 1500, start: int = 0
+    ) -> np.ndarray:
         """Downsample long convergence series without altering calculations."""
         if length - start <= max_points:
             return np.arange(start, length)
